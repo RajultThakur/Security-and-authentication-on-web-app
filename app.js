@@ -4,7 +4,8 @@ const ejs = require("ejs");
 const exp = require("constants");
 const port = 3000;
 const mongoose = require("mongoose");
-
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const app = express();
 
@@ -40,6 +41,7 @@ const userSchema = new mongoose.Schema({
     }
 });
 
+
 const User = new mongoose.model("User",userSchema); 
 
 
@@ -52,21 +54,22 @@ app.get("/register",(req,res) => {
 });
 
 app.post("/register",(req,res) => {
-   const userName = req.body.username;
-   const Password = req.body.password;
-
-   const user = new User({
-       email : userName,
-       password : Password
-   });
-
-   user.save( (err) => {
-       if(!err){
-           res.render("secrets");
-       }else{
-           console.log("something went wrong");
-       }
-   });
+    bcrypt.hash(req.body.password,saltRounds,(err,hash) => {
+        
+        const user = new User({
+            email : req.body.username,
+            password : hash
+        });
+     
+        user.save( (err) => {
+            if(!err){
+                res.render("secrets");
+            }else{
+                console.log("something went wrong");
+            }
+        });
+    })
+   
 });
 
 app.get("/login",(req,res) => {
@@ -80,9 +83,11 @@ app.post("/login",(req,res) => {
    User.findOne({email : username},function(err,result) {
        if(!err){
            if(result){
-               if(result.password === password){
-                   res.render("secrets");
-               }
+               bcrypt.compare(password,result.password,(err,hashResult) =>{
+                   if(hashResult === true){
+                       res.render("secrets");
+                   }
+               })
            }
        }else{
            console.log(err);
